@@ -136,25 +136,25 @@ function processOrder(order) {
         "allowed_keys": ["d", "w", "d", "d", "D", "x", "h", "j", "k", "l"],
         "text": """\
 function start() {
-  let deleteWord = "useless";
+  let ddeleteWord = "useless";
   const keepMe = "important";
-  let extraWord = "redundant";
-  const deleteLine = "remove this line";
+  let extrasWord = "redundant";
+  const deleteLines = "remove this line";
 }
 """,
         "start_pos": (0, 0),
         "targets": [
-            (1, 6),   # 'd' in 'deleteWord' — delete with dw
-            (3, 6),   # 'e' in 'extraWord' — delete with dw
-            (4, 8),   # 'd' in 'deleteLine' — delete with dd (last, so no line-shift issues)
+            (1, 6),   # 'd' in 'ddeleteWord' — delete with dw
+            (3, 11),   # 's' in 'extrasWord' — delete with dw
+            (4, 18),   # 's' in 'deleteLines' — delete with dd (last, so no line-shift issues)
         ],
         # Optional per-target checks. When present, the trainer waits for the
         # given text to leave the buffer before advancing (instead of advancing
         # as soon as the cursor lands on the target).
         "checks": [
-            {"type": "delete", "text": "deleteWord"},
-            {"type": "delete", "text": "extraWord"},
-            {"type": "delete", "text": "deleteLine"},
+            {"type": "delete", "text": "ddeleteWord"},
+            {"type": "delete", "text": "extrasWord"},
+            {"type": "delete", "text": "deleteLines"},
         ],
     },
 ]
