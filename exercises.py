@@ -75,7 +75,7 @@ function maze() {
         "id": "word-motions",
         "name": "Word Motions  w / e / b",
         "description": "Jump to each target using w, e, or b. No hjkl!",
-        "allowed_keys": ["w", "e", "b", "W", "E", "B"],
+        "allowed_keys": ["w", "e", "b", "W", "E", "B", "j"],
         "text": """\
 const result = fetchData(apiUrl, options);
 const filtered = result.filter(item => item.active);
@@ -95,7 +95,7 @@ const names = filtered.map(item => item.name);
         "id": "word-motions-extended",
         "name": "Word Motions Extended",
         "description": "Navigate longer code using w, e, b and their capital variants.",
-        "allowed_keys": ["w", "e", "b", "W", "E", "B"],
+        "allowed_keys": ["w", "e", "b", "W", "E", "B", "j", "l"],
         "text": """\
 const apiResponse = await fetchDataFromServer(userId, options);
 const { data, status } = await response.json();
@@ -171,7 +171,7 @@ process([1, 2, 3]);
         "id": "find-char",
         "name": "Find Character  f / F / ;",
         "description": "Use f{char} and F{char} to jump directly to the targets.",
-        "allowed_keys": ["f", "F", ";", ","],
+        "allowed_keys": ["f", "F", ";", ",", "j"],
         "text": """\
 import { useState, useEffect, useCallback } from 'react';
 const [count, setCount] = useState(0);
@@ -191,7 +191,7 @@ useEffect(() => { setCount(c => c + 1); }, [count]);
         "id": "find-char-advanced",
         "name": "Find Character Advanced",
         "description": "Use f/F and ;/, to jump through many targets with different chars.",
-        "allowed_keys": ["f", "F", ";", ","],
+        "allowed_keys": ["f", "F", ";", ",", "j", "l", "h"],
         "text": """\
 import { useState, useEffect, useContext, useReducer } from 'react';
 import axios from 'axios';
@@ -282,7 +282,7 @@ manager.addUser({ id: 3, name: "Charlie" });
         "id": "delete-ops",
         "name": "Delete Operators  dw / dd / D / x",
         "description": "Navigate to the highlighted word and DELETE it. Use dw, dd, D, or x.",
-        "allowed_keys": ["d", "w", "d", "d", "D", "x", "h", "j", "k", "l"],
+        "allowed_keys": ["d", "w", "d", "d", "D", "x", "h", "j", "k", "l", "/"],
         "check_mode": "content",
         "text": """\
 function start() {
@@ -309,7 +309,7 @@ function start() {
         "id": "delete-challenge",
         "name": "Delete Challenge",
         "description": "Navigate to each target and delete it with dw, diw, dd, D, or x.",
-        "allowed_keys": ["d", "w", "i", "d", "D", "x", "h", "j", "k", "l"],
+        "allowed_keys": ["d", "w", "i", "d", "D", "x", "h", "j", "k", "l", "/"],
         "check_mode": "content",
         "text": """\
 function cleanup() {
@@ -339,7 +339,7 @@ function cleanup() {
         "id": "change-inside",
         "name": "Change Inside  ci\" ci' ci( ci[ ci{",
         "description": "Use ci\", ci', ci(, ci[, or ci{ to replace each word with the one shown in the comment.",
-        "allowed_keys": ["ci\"", "ci'", "ci(", "ci[", "ci{", "w", "b", "e"],
+        "allowed_keys": ["ci\"", "ci'", "ci(", "ci[", "ci{", "w", "b", "e", "/"],
         "text": """\
 const s1 = "APPLE";    // → BANANA
 const s2 = 'CHERRY';   // → DATE
@@ -369,7 +369,7 @@ const obj = {GRAPE};   // → BERRY
         "id": "change-inside-advanced",
         "name": "Change Inside Advanced  ci` ci[ ci{ ci\"",
         "description": "Use ci`, ci[, ci{, and ci\" to replace each word with the one shown in the comment.",
-        "allowed_keys": ["ci`", "ci[", "ci{", "ci\"", "ci'", "w", "b", "f", "F"],
+        "allowed_keys": ["ci`", "ci[", "ci{", "ci\"", "ci'", "w", "b", "f", "F", "/"],
         "text": """\
 const url = `REMOVE_A`;       // → PLANET_A
 const data = { key: "REMOVE_B" };  // → PLANET_B
@@ -388,6 +388,338 @@ const list = ["REMOVE_C"];    // → PLANET_C
             {"type": "state", "expected": "const url = `PLANET_A`;       // → PLANET_A\nconst data = {PLANET_B};  // → PLANET_B\nconst list = [PLANET_C];    // → PLANET_C"},
         ],
         "answer": "/REMOVE_A<CR>ci`PLANET_A<Esc>/REMOVE_B<CR>ci{PLANET_B<Esc>/REMOVE_C<CR>ci[PLANET_C<Esc>",
+    },
+
+    # ── Phase 2: Matching pairs ────────────────────────────────────────────────
+    {
+        "id": "matching-pairs",
+        "name": "Matching Pairs  %",
+        "description": "Use % to jump between matching brackets.",
+        "allowed_keys": ["%", "f", "0", "j"],
+        "text": """\
+let x = (a + b);
+let y = [1, 2, 3];
+let z = { key: val };
+""",
+        "start_pos": (0, 0),
+        "targets": [
+            (0, 14),   # ) matching (
+            (1, 16),   # ] matching [
+            (2, 19),   # } matching {
+        ],
+        "answer": "f(%j0f[%j0f{%",
+    },
+    {
+        "id": "scroll-basics",
+        "name": "Numbered Jumps  [count]j / [count]k",
+        "description": "Jump multiple lines at once using count-prefixed j and k.",
+        "allowed_keys": ["j", "k", "1", "2", "3", "4", "5", "6", "7", "8", "9"],
+        "text": """\
+line 00
+line 01
+line 02
+line 03
+line 04
+line 05
+line 06
+line 07
+line 08
+line 09
+line 10
+line 11
+line 12
+line 13
+line 14
+line 15
+line 16
+line 17
+line 18
+line 19
+line 20
+line 21
+line 22
+line 23
+line 24
+""",
+        "start_pos": (0, 0),
+        "targets": [
+            (2, 0),    # 2j
+            (4, 0),    # 2j 2j
+            (6, 0),    # 2j 2j 2j
+        ],
+        "answer": "2j2j2j",
+    },
+    {
+        "id": "scroll-screen",
+        "name": "Screen Navigation  H / M / L",
+        "description": "Jump to the top, middle, and bottom of the screen.",
+        "allowed_keys": ["H", "M", "L"],
+        "setup_commands": ["resize 10"],
+        "text": """\
+line 00
+line 01
+line 02
+line 03
+line 04
+line 05
+line 06
+line 07
+line 08
+line 09
+line 10
+line 11
+line 12
+line 13
+line 14
+line 15
+line 16
+line 17
+line 18
+line 19
+line 20
+line 21
+line 22
+line 23
+line 24
+""",
+        "start_pos": (0, 0),
+        "targets": [
+            (9, 0),   # L
+            (0, 0),   # H
+            (4, 0),   # M
+        ],
+        "answer": "LHM",
+    },
+    {
+        "id": "jump-list",
+        "name": "Jump List  Ctrl-O",
+        "description": "Use Ctrl-O to jump back through the jump list to previous locations.",
+        "allowed_keys": ["<C-o>", "G", "/"],
+        "text": """\
+start here
+a
+b
+c
+d
+middle area
+f
+g
+h
+i
+end here
+""",
+        "start_pos": (0, 0),
+        "targets": [
+            (10, 0),  # G
+            (5, 0),   # /middle<CR>
+            (10, 0),  # <C-o> back
+            (0, 0),   # <C-o> back again
+        ],
+        "answer": "G/middle<CR><C-o><C-o>",
+    },
+
+    # ── Phase 3: Text objects ──────────────────────────────────────────────────
+    {
+        "id": "pair-objects",
+        "name": "Pair Text Objects  di( / da( / ci(",
+        "description": "Delete and change inside and around brackets.",
+        "allowed_keys": ["d", "i", "(", "a", "c", "<Esc>", "f", "j", "l"],
+        "check_mode": "content",
+        "text": """\
+foo(bar) baz
+func(a, b, c) rest
+data[key] value
+""",
+        "start_pos": (0, 0),
+        "targets": [
+            (0, 3, 8),
+            (1, 4, 14),
+            (2, 4, 11),
+        ],
+        "checks": [
+            {"type": "state", "expected": "foo() baz\nfunc rest\ndata[KEY] value"},
+        ],
+        "answer": "f(di(jda(jlci[KEY<Esc>",
+    },
+    {
+        "id": "replace-char",
+        "name": "Replace Character  r / x",
+        "description": "Use r to replace a character and x to delete a character.",
+        "allowed_keys": ["r", "x", "f", "w"],
+        "check_mode": "content",
+        "text": """\
+fix thes worrd.
+""",
+        "start_pos": (0, 0),
+        "checks": [
+            {"type": "state", "expected": "fix this word."},
+        ],
+        "answer": "feriwfrx",
+    },
+    {
+        "id": "case-change",
+        "name": "Case Changes  gu / gU",
+        "description": "Lowercase with gu and uppercase with gU.",
+        "allowed_keys": ["g", "U", "u", "w", "0", "j"],
+        "check_mode": "content",
+        "text": """\
+make THIS lowercase
+MAKE this UPPERCASE
+""",
+        "start_pos": (0, 0),
+        "checks": [
+            {"type": "state", "expected": "make this lowercase\nMAKE THIS UPPERCASE"},
+        ],
+        "answer": "wguwj0wgUw",
+    },
+    {
+        "id": "visual-basic",
+        "name": "Visual Mode  v / V",
+        "description": "Use visual mode to select text, then delete or uppercase.",
+        "allowed_keys": ["v", "V", "d", "U", "e", "j"],
+        "check_mode": "content",
+        "text": """\
+delete me
+keep me
+""",
+        "start_pos": (0, 0),
+        "checks": [
+            {"type": "state", "expected": " me\nKEEP ME"},
+        ],
+        "answer": "vedjVU",
+    },
+    {
+        "id": "visual-block",
+        "name": "Visual Block  Ctrl-V",
+        "description": "Use Ctrl-V for block-wise visual selection.",
+        "allowed_keys": ["<C-v>", "d", "j"],
+        "check_mode": "content",
+        "text": """\
+abc
+123
+xyz
+""",
+        "start_pos": (0, 0),
+        "checks": [
+            {"type": "state", "expected": "bc\n23\nyz"},
+        ],
+        "answer": "<C-v>jjd",
+    },
+    {
+        "id": "substitute",
+        "name": "Substitute  :s",
+        "description": "Use :s to substitute text patterns.",
+        "allowed_keys": [":", "s", "/", "g", "%", "j"],
+        "check_mode": "content",
+        "text": """\
+cat dog cat
+dog cat dog
+cat cat dog
+""",
+        "start_pos": (0, 0),
+        "targets": [
+            (0, 0, 0),
+            (0, 0, 0),
+            (0, 0, 0),
+        ],
+        "checks": [
+            {"type": "state", "expected": "dog dog cat\ndog cat dog\ncat cat dog"},
+            {"type": "state", "expected": "dog dog dog\ndog cat dog\ncat cat dog"},
+            {"type": "state", "expected": "dog dog dog\ndog dog dog\ndog dog dog"},
+        ],
+        "answer": ":s/cat/dog<CR>j:s/cat/dog<CR>:%s/cat/dog/g<CR>",
+    },
+    {
+        "id": "yank-put",
+        "name": "Yank & Put  yy / yw / p",
+        "description": "Yank (copy) and put (paste) entire lines.",
+        "allowed_keys": ["y", "y", "p", "j"],
+        "check_mode": "content",
+        "text": """\
+line one
+line two
+line three
+""",
+        "start_pos": (0, 0),
+        "checks": [
+            {"type": "state", "expected": "line one\nline one\nline two\nline three"},
+        ],
+        "answer": "yyp",
+    },
+    {
+        "id": "registers",
+        "name": "Named Registers  \"a y / \"a p",
+        "description": "Yank to and paste from named registers.",
+        "allowed_keys": ["\"", "a", "y", "p"],
+        "check_mode": "content",
+        "text": """\
+first
+second
+third
+""",
+        "start_pos": (0, 0),
+        "checks": [
+            {"type": "state", "expected": "first\nfirst\nsecond\nthird"},
+        ],
+        "answer": "\"ayy\"ap",
+    },
+
+    # ── Phase 4: Multi-step ────────────────────────────────────────────────────
+    {
+        "id": "cgn-dot",
+        "name": "cgn + Dot  cgn / .",
+        "description": "Change all occurrences of a pattern using cgn and the dot repeat.",
+        "allowed_keys": ["c", "g", "n", ".", "/"],
+        "check_mode": "content",
+        "text": """\
+foo bar foo
+foo bar foo
+""",
+        "start_pos": (0, 0),
+        "checks": [
+            {"type": "state", "expected": "baz bar baz\nbaz bar baz"},
+        ],
+        "answer": "/foo<CR>cgnbaz<Esc>n.n.n.",
+    },
+    {
+        "id": "macros",
+        "name": "Macros  q / @",
+        "description": "Record and replay macros to automate repetitive edits.",
+        "allowed_keys": ["q", "@", "a", "$", "j", "g"],
+        "check_mode": "content",
+        "text": """\
+1. item
+2. item
+3. item
+4. item
+""",
+        "start_pos": (0, 0),
+        "checks": [
+            {"type": "state", "expected": "1. ITEM\n2. ITEM\n3. ITEM\n4. ITEM"},
+        ],
+        "answer": "qa0gU$jq3@a",
+    },
+    {
+        "id": "window-nav",
+        "name": "Window Navigation  Ctrl-W",
+        "description": "Navigate between windows using Ctrl-W h/j/k/l. Split windows with Ctrl-W v/s.",
+        "allowed_keys": ["<C-w>", "h", "j", "k", "l", "v", "s", "c", "o"],
+        "layout": "windows",
+        "setup_commands": ["set scroll=2"],
+        "text": """\
+top-left
+---
+top-right
+---
+bottom
+---
+""",
+        "start_pos": (0, 0),
+        "targets": [
+            (4, 0),   # <C-w>j → bottom window
+            (0, 0),   # <C-w>k → top-left
+        ],
+        "answer": "<C-w>j<C-w>k",
     },
 ]
 
