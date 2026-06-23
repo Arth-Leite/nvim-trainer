@@ -69,14 +69,63 @@ class VimTrainer:
     # ── Setup ──────────────────────────────────────────────────────────────────
 
     def _setup_highlights(self):
-        """Define custom highlight groups (safe to call multiple times)."""
+        """Define custom highlight groups — menus palette throughout."""
+        self.nvim.command("try | set termguicolors | catch | endtry")
+        self.nvim.command("set background=dark")
+        self.nvim.command("colorscheme habamax")
+
         cmds = [
-            # bright yellow bg + black fg for the target
+            # ── UI shell (teal accents like the terminal menu) ────────
+            "highlight StatusLine   guibg=#008080 guifg=#ffffff ctermbg=30  ctermfg=255",
+            "highlight StatusLineNC guibg=#005050 guifg=#b0b0b0 ctermbg=23 ctermfg=249",
+            "highlight WildMenu     guibg=#ffd700 guifg=#000000 ctermbg=226 ctermfg=0",
+            "highlight Pmenu        guibg=#3a3a3a guifg=#e0e0e0 ctermbg=237 ctermfg=255",
+            "highlight PmenuSel     guibg=#008080 guifg=#ffffff ctermbg=30  ctermfg=255",
+
+            # ── Line numbers ──────────────────────────────────────────
+            "highlight LineNr       guifg=#585858               ctermfg=241",
+            "highlight CursorLineNr guifg=#ffd700 guibg=#2a2a2a ctermfg=226 ctermbg=236",
+
+            # ── Cursor / selection ────────────────────────────────────
+            "highlight CursorLine   guibg=#1e1e2e               ctermbg=235",
+            "highlight CursorColumn guibg=#1e1e2e               ctermbg=235",
+            "highlight ColorColumn  guibg=#2a2a3e               ctermbg=236",
+            "highlight Visual       guibg=#005050               ctermbg=23",
+
+            # ── Spot the target ───────────────────────────────────────
             f"highlight {HL_TARGET} guibg=#FFD700 guifg=#000000 "
             f"ctermbg=226 ctermfg=0",
-            # green flash on success
-            f"highlight {HL_DONE} guibg=#00FF87 guifg=#000000 "
-            f"ctermbg=48 ctermfg=0",
+            f"highlight {HL_DONE}   guibg=#00FF87 guifg=#000000 "
+            f"ctermbg=48  ctermfg=0",
+
+            # ── Instruction header ────────────────────────────────────
+            "highlight TrainerHeader guibg=#2a2a3e guifg=#e0e0e0 "
+            "ctermbg=236 ctermfg=255",
+
+            # ── Syntax — vibrant, matching the menu palette ───────────
+            "highlight Keyword      guifg=#ff87d7               ctermfg=212",
+            "highlight String       guifg=#ffd700               ctermfg=226",
+            "highlight Function     guifg=#5fff87               ctermfg=82",
+            "highlight Type         guifg=#5fafff               ctermfg=75",
+            "highlight Constant     guifg=#87afff               ctermfg=111",
+            "highlight Number       guifg=#d787ff               ctermfg=183",
+            "highlight Boolean      guifg=#ff87d7               ctermfg=212",
+            "highlight Special      guifg=#87d7ff               ctermfg=117",
+            "highlight Identifier   guifg=#e0e0e0               ctermfg=255",
+            "highlight PreProc      guifg=#ffaf00               ctermfg=214",
+            "highlight Conditional  guifg=#ff87d7               ctermfg=212",
+            "highlight Repeat       guifg=#ff87d7               ctermfg=212",
+            "highlight Operator     guifg=#ff875f               ctermfg=209",
+            "highlight Comment      guifg=#6a6a8a               ctermfg=242",
+
+            # ── Search (gold, like targets) ───────────────────────────
+            "highlight Search       guibg=#ffd700 guifg=#000000 ctermbg=226 ctermfg=0",
+            "highlight IncSearch    guibg=#ff8700 guifg=#000000 ctermbg=208 ctermfg=0",
+
+            # ── Misc ──────────────────────────────────────────────────
+            "highlight NonText      guifg=#4a4a5a               ctermfg=239",
+            "highlight SpecialKey   guifg=#4a4a5a               ctermfg=239",
+            "highlight MatchParen   guibg=#005f5f guifg=#ffffff ctermbg=23  ctermfg=255",
         ]
         for cmd in cmds:
             self.nvim.command(cmd)
@@ -152,7 +201,11 @@ class VimTrainer:
         buf.options["modifiable"] = False
 
         self.nvim.command("resize 6")
+        self.nvim.command("setlocal winhighlight=Normal:TrainerHeader")
+        self.nvim.command("setlocal cursorline")
         self.nvim.command("wincmd j")
+        self.nvim.command("setlocal relativenumber")
+        self.nvim.command("setlocal cursorline")
         self._setup_controls()
         time.sleep(0.05)
 
@@ -218,10 +271,9 @@ class VimTrainer:
 
     def _set_statusline(self, msg: str):
         """Show a message in Neovim's statusline."""
-        # Store in a Vim variable and reference via %{} to bypass &statusline's special < > syntax
         safe = msg.replace("'", "''")
         self.nvim.command(f"let g:trainer_status='{safe}'")
-        self.nvim.command("set statusline=%{g:trainer_status}")
+        self.nvim.command("set statusline=%#StatusLine#%{g:trainer_status}")
 
     def _echo(self, msg: str, hl: str = "Normal"):
         """Flash a message at the bottom of the Neovim screen."""
