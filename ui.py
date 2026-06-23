@@ -67,15 +67,15 @@ def show_stats(stats, exercise_name: str):
     print()
 
 
-def pick_exercise(exercises: list) -> dict:
+def pick_exercise(exercises: list):
     while True:
         try:
             raw = input(f"  {BOLD}Enter number (or q to quit):{RESET} ").strip()
         except (EOFError, KeyboardInterrupt):
-            sys.exit(0)
+            return None
 
         if raw.lower() == "q":
-            sys.exit(0)
+            return None
 
         try:
             idx = int(raw) - 1
@@ -100,17 +100,17 @@ def wait_for_socket(socket_path: str, timeout: int = 30) -> bool:
 
 def run(socket_path: str):
     from exercises import EXERCISES
-    from trainer import VimTrainer
+    from trainer import VimTrainer, RestartExercise, QuitToMenu
 
     if not wait_for_socket(socket_path):
         print(f"\n  {RED}✗  Neovim socket not found at {socket_path}{RESET}")
-        print(f"  Start Neovim with:\n")
-        print(f"    {CYAN}NVIM_LISTEN_ADDRESS={socket_path} nvim{RESET}\n")
+        print(f"  Run the launcher:\n")
+        print(f"    {CYAN}./run.sh{RESET}\n")
         sys.exit(1)
 
     trainer = VimTrainer(socket_path)
     print(f"  {GREEN}✓  Connected to Neovim{RESET}")
-    time.sleep(0.5)
+    time.sleep(0.3)
 
     try:
         while True:
@@ -120,17 +120,30 @@ def run(socket_path: str):
             rule()
 
             exercise = pick_exercise(EXERCISES)
+            if exercise is None:
+                break
 
             clr()
             header()
             rule()
             print(f"\n  {BOLD}▶  {exercise['name']}{RESET}")
             print(f"  {DIM}{exercise['description']}{RESET}\n")
-            print(f"  {YELLOW}Focus your Neovim pane and start moving!{RESET}")
+            print(f"  {YELLOW}A new tab opened with the exercise — start moving!{RESET}")
             print(f"  {DIM}(The target is highlighted in yellow){RESET}\n")
             rule()
 
-            stats = trainer.run_exercise(exercise)
+            while True:
+                try:
+                    stats = trainer.run_exercise(exercise)
+                    break
+                except RestartExercise:
+                    continue
+                except QuitToMenu:
+                    stats = None
+                    break
+
+            if stats is None:
+                continue
 
             clr()
             header()
