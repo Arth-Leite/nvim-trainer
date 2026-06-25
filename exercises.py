@@ -16,64 +16,163 @@ Lines in `text` are 0-indexed in targets (matching Neovim's 0-based col /
 talking to the Neovim API).
 """
 
+import random
+from collections import deque
+
+
+def _generate_maze(height=6, width=10):
+    """Generate a random maze and return (text, start_pos, targets, answer).
+
+    The maze uses the same ASCII format as the existing exercises:
+    `+`/`-`/`|` for walls, spaces for passages, `S` for start, `E` for end.
+
+    Returns a dict with keys: text, start_pos, targets, answer.
+    """
+    total_rows = height * 2 + 1
+    total_cols = width * 3 + 1
+
+    grid = [[" "] * total_cols for _ in range(total_rows)]
+
+    # Fill the structural wall pattern
+    for r in range(total_rows):
+        for c in range(total_cols):
+            if r % 2 == 0 and c % 3 == 0:
+                grid[r][c] = "+"
+            elif r % 2 == 0:
+                grid[r][c] = "-"
+            else:
+                if c % 3 == 0:
+                    grid[r][c] = "|"
+
+    # Carve passages with recursive backtracking
+    visited = [[False] * width for _ in range(height)]
+
+    def carve(r, c):
+        visited[r][c] = True
+        dirs = [(0, 1), (1, 0), (0, -1), (-1, 0)]
+        random.shuffle(dirs)
+        for dr, dc in dirs:
+            nr, nc = r + dr, c + dc
+            if 0 <= nr < height and 0 <= nc < width and not visited[nr][nc]:
+                if dr == 0:
+                    grid[2 * r + 1][3 * (max(c, nc))] = " "
+                else:
+                    if dr == 1:
+                        grid[2 * r + 2][3 * c + 1] = " "
+                        grid[2 * r + 2][3 * c + 2] = " "
+                    else:
+                        grid[2 * r][3 * c + 1] = " "
+                        grid[2 * r][3 * c + 2] = " "
+                carve(nr, nc)
+
+    carve(0, 0)
+
+    # BFS to find farthest cell from start for E placement
+    dist = [[-1] * width for _ in range(height)]
+    q = deque()
+    q.append((0, 0))
+    dist[0][0] = 0
+    max_dist = 0
+    farthest = (0, 0)
+
+    while q:
+        r, c = q.popleft()
+        for dr, dc, cond in [
+            (0, 1, grid[2 * r + 1][3 * (c + 1)] == " "),
+            (0, -1, grid[2 * r + 1][3 * c] == " "),
+            (1, 0, grid[2 * r + 2][3 * c + 1] == " "),
+            (-1, 0, grid[2 * r][3 * c + 1] == " "),
+        ]:
+            nr, nc = r + dr, c + dc
+            if 0 <= nr < height and 0 <= nc < width and dist[nr][nc] == -1 and cond:
+                dist[nr][nc] = dist[r][c] + 1
+                q.append((nr, nc))
+                if dist[nr][nc] > max_dist:
+                    max_dist = dist[nr][nc]
+                    farthest = (nr, nc)
+
+    # Place S at (0,0) cell → grid (1,1), E at farthest cell
+    grid[1][1] = "S"
+    er, ec = farthest
+    grid[2 * er + 1][3 * ec + 1] = "E"
+
+    start_pos = (1, 1)
+    end_pos = (2 * er + 1, 3 * ec + 1)
+
+    # BFS from (0,0) to farthest for answer
+    parent = {(0, 0): None}
+    q = deque([(0, 0)])
+    while q:
+        r, c = q.popleft()
+        if (r, c) == (er, ec):
+            break
+        for dr, dc, cond in [
+            (0, 1, grid[2 * r + 1][3 * (c + 1)] == " "),
+            (0, -1, grid[2 * r + 1][3 * c] == " "),
+            (1, 0, grid[2 * r + 2][3 * c + 1] == " "),
+            (-1, 0, grid[2 * r][3 * c + 1] == " "),
+        ]:
+            nr, nc = r + dr, c + dc
+            if 0 <= nr < height and 0 <= nc < width and (nr, nc) not in parent and cond:
+                parent[(nr, nc)] = (r, c)
+                q.append((nr, nc))
+
+    # Reconstruct path
+    path = []
+    cur = (er, ec)
+    while cur is not None:
+        path.append(cur)
+        cur = parent.get(cur)
+    path.reverse()
+
+    # Convert cell path to hjkl keystrokes
+    answer_parts = []
+    for i in range(len(path) - 1):
+        r1, c1 = path[i]
+        r2, c2 = path[i + 1]
+        dr = r2 - r1
+        dc = c2 - c1
+        if dc == 1:
+            answer_parts.append("lll")
+        elif dc == -1:
+            answer_parts.append("hhh")
+        elif dr == 1:
+            answer_parts.append("jj")
+        elif dr == -1:
+            answer_parts.append("kk")
+
+    text = "\n".join("".join(row) for row in grid)
+    return {
+        "text": text,
+        "start_pos": start_pos,
+        "targets": [end_pos],
+        "answer": "".join(answer_parts),
+    }
+
+
+_maze_fields = _generate_maze()
+
 EXERCISES = [
 
     # ── Basic hjkl ────────────────────────────────────────────────────────────
     {
-        "id": "hjkl-basic",
-        "name": "Basic hjkl Movement",
-        "description": "Navigate to each highlighted target using ONLY h j k l.",
-        "allowed_keys": ["h", "j", "k", "l"],
-        "text": """\
-function greet(name) {
-  const message = "Hello, " + name;
-  console.log(message);
-  return message;
-}
-
-greet("World");
-""",
-        "start_pos": (0, 0),
-        "targets": [
-            (0, 15),  # 'n' in greet(name)
-            (1, 18),  # '"' opening quote
-            (2, 10),  # 'l' in log
-            (6, 6),   # '"' in greet("World")
-        ],
-        "answer": "15lj3lj8h4j4h",
-    },
-    {
         "id": "hjkl-maze",
         "name": "hjkl Maze",
-        "description": "Navigate a winding path through code using h j k l.",
+        "category": "Movement",
+        "description": "Navigate from S to E through the maze using h j k l.",
         "allowed_keys": ["h", "j", "k", "l"],
-        "text": """\
-function maze() {
-  let alpha = 1;
-  let beta  = 2;
-  let gamma = 3;
-  let delta = 4;
-  let epsilon = 5;
-  return alpha + beta + gamma + delta + epsilon;
-}
-""",
-        "start_pos": (0, 0),
-        "targets": [
-            (0, 9),   # 'm' in maze
-            (1, 6),   # 'a' in alpha
-            (2, 6),   # 'b' in beta
-            (3, 6),   # 'g' in gamma
-            (4, 6),   # 'd' in delta
-            (5, 6),   # 'e' in epsilon
-            (6, 2),   # 'r' in return
-        ],
-        "answer": "9lj3hjjjjj4h",
+        "wall_chars": "+-|",
+        "text": _maze_fields["text"],
+        "start_pos": _maze_fields["start_pos"],
+        "targets": _maze_fields["targets"],
+        "answer": _maze_fields["answer"],
     },
 
     # ── Word motions ──────────────────────────────────────────────────────────
     {
         "id": "word-motions",
         "name": "Word Motions  w / e / b",
+        "category": "Movement",
         "description": "Jump to each target using w, e, or b. No hjkl!",
         "allowed_keys": ["w", "e", "b", "W", "E", "B", "j"],
         "text": """\
@@ -94,6 +193,7 @@ const names = filtered.map(item => item.name);
     {
         "id": "word-motions-extended",
         "name": "Word Motions Extended",
+        "category": "Movement",
         "description": "Navigate longer code using w, e, b and their capital variants.",
         "allowed_keys": ["w", "e", "b", "W", "E", "B", "j", "l"],
         "text": """\
@@ -120,6 +220,7 @@ const filteredResults = data.filter(item => item.value >= threshold);
     {
         "id": "line-ends",
         "name": "Line End Motions  0 / $ / _",
+        "category": "Movement",
         "description": "Reach the targets at the start/end of lines using 0, $, or _.",
         "allowed_keys": ["0", "$", "_", "j", "k"],
         "text": """\
@@ -140,6 +241,7 @@ const z = Math.sqrt(x * x + y * y);
     {
         "id": "line-ends-mastery",
         "name": "Line End Mastery",
+        "category": "Movement",
         "description": "Master 0, $, and _ on deeply indented code.",
         "allowed_keys": ["0", "$", "_", "j", "k"],
         "text": """\
@@ -170,6 +272,7 @@ process([1, 2, 3]);
     {
         "id": "find-char",
         "name": "Find Character  f / F / ;",
+        "category": "Find & Search",
         "description": "Use f{char} and F{char} to jump directly to the targets.",
         "allowed_keys": ["f", "F", ";", ",", "j"],
         "text": """\
@@ -190,6 +293,7 @@ useEffect(() => { setCount(c => c + 1); }, [count]);
     {
         "id": "find-char-advanced",
         "name": "Find Character Advanced",
+        "category": "Find & Search",
         "description": "Use f/F and ;/, to jump through many targets with different chars.",
         "allowed_keys": ["f", "F", ";", ",", "j", "l", "h"],
         "text": """\
@@ -220,6 +324,7 @@ const App = () => {
     {
         "id": "search",
         "name": "Search  / and n / N",
+        "category": "Find & Search",
         "description": "Use /pattern to find targets and n / N to repeat.",
         "allowed_keys": ["/", "?", "n", "N", "*", "#"],
         "text": """\
@@ -243,6 +348,7 @@ function processOrder(order) {
     {
         "id": "search-advanced",
         "name": "Search Deep",
+        "category": "Find & Search",
         "description": "Use /pattern and n/N to navigate a longer file with repeated patterns.",
         "allowed_keys": ["/", "?", "n", "N", "*", "#"],
         "text": """\
@@ -281,6 +387,7 @@ manager.addUser({ id: 3, name: "Charlie" });
     {
         "id": "delete-ops",
         "name": "Delete Operators  dw / dd / D / x",
+        "category": "Delete & Change",
         "description": "Navigate to the highlighted word and DELETE it. Use dw, dd, D, or x.",
         "allowed_keys": ["d", "w", "d", "d", "D", "x", "h", "j", "k", "l", "/"],
         "check_mode": "content",
@@ -308,6 +415,7 @@ function start() {
     {
         "id": "delete-challenge",
         "name": "Delete Challenge",
+        "category": "Delete & Change",
         "description": "Navigate to each target and delete it with dw, diw, dd, D, or x.",
         "allowed_keys": ["d", "w", "i", "d", "D", "x", "h", "j", "k", "l", "/"],
         "check_mode": "content",
@@ -338,6 +446,7 @@ function cleanup() {
     {
         "id": "change-inside",
         "name": "Change Inside  ci\" ci' ci( ci[ ci{",
+        "category": "Delete & Change",
         "description": "Use ci\", ci', ci(, ci[, or ci{ to replace each word with the one shown in the comment.",
         "allowed_keys": ["ci\"", "ci'", "ci(", "ci[", "ci{", "w", "b", "e", "/"],
         "text": """\
@@ -368,6 +477,7 @@ const obj = {GRAPE};   // → BERRY
     {
         "id": "change-inside-advanced",
         "name": "Change Inside Advanced  ci` ci[ ci{ ci\"",
+        "category": "Delete & Change",
         "description": "Use ci`, ci[, ci{, and ci\" to replace each word with the one shown in the comment.",
         "allowed_keys": ["ci`", "ci[", "ci{", "ci\"", "ci'", "w", "b", "f", "F", "/"],
         "text": """\
@@ -394,6 +504,7 @@ const list = ["REMOVE_C"];    // → PLANET_C
     {
         "id": "matching-pairs",
         "name": "Matching Pairs  %",
+        "category": "Pairs & Jumps",
         "description": "Use % to jump between matching brackets.",
         "allowed_keys": ["%", "f", "0", "j"],
         "text": """\
@@ -412,6 +523,7 @@ let z = { key: val };
     {
         "id": "scroll-basics",
         "name": "Numbered Jumps  [count]j / [count]k",
+        "category": "Pairs & Jumps",
         "description": "Jump multiple lines at once using count-prefixed j and k.",
         "allowed_keys": ["j", "k", "1", "2", "3", "4", "5", "6", "7", "8", "9"],
         "text": """\
@@ -452,6 +564,7 @@ line 24
     {
         "id": "scroll-screen",
         "name": "Screen Navigation  H / M / L",
+        "category": "Pairs & Jumps",
         "description": "Jump to the top, middle, and bottom of the screen.",
         "allowed_keys": ["H", "M", "L"],
         "setup_commands": ["resize 10"],
@@ -493,6 +606,7 @@ line 24
     {
         "id": "jump-list",
         "name": "Jump List  Ctrl-O",
+        "category": "Pairs & Jumps",
         "description": "Use Ctrl-O to jump back through the jump list to previous locations.",
         "allowed_keys": ["<C-o>", "G", "/"],
         "text": """\
@@ -522,6 +636,7 @@ end here
     {
         "id": "pair-objects",
         "name": "Pair Text Objects  di( / da( / ci(",
+        "category": "Text Objects",
         "description": "Delete and change inside and around brackets.",
         "allowed_keys": ["d", "i", "(", "a", "c", "<Esc>", "f", "j", "l"],
         "check_mode": "content",
@@ -544,6 +659,7 @@ data[key] value
     {
         "id": "replace-char",
         "name": "Replace Character  r / x",
+        "category": "Text Objects",
         "description": "Use r to replace a character and x to delete a character.",
         "allowed_keys": ["r", "x", "f", "w"],
         "check_mode": "content",
@@ -559,6 +675,7 @@ fix thes worrd.
     {
         "id": "case-change",
         "name": "Case Changes  gu / gU",
+        "category": "Text Objects",
         "description": "Lowercase with gu and uppercase with gU.",
         "allowed_keys": ["g", "U", "u", "w", "0", "j"],
         "check_mode": "content",
@@ -575,6 +692,7 @@ MAKE this UPPERCASE
     {
         "id": "visual-basic",
         "name": "Visual Mode  v / V",
+        "category": "Visual & Cmds",
         "description": "Use visual mode to select text, then delete or uppercase.",
         "allowed_keys": ["v", "V", "d", "U", "e", "j"],
         "check_mode": "content",
@@ -591,6 +709,7 @@ keep me
     {
         "id": "visual-block",
         "name": "Visual Block  Ctrl-V",
+        "category": "Visual & Cmds",
         "description": "Use Ctrl-V for block-wise visual selection.",
         "allowed_keys": ["<C-v>", "d", "j"],
         "check_mode": "content",
@@ -608,6 +727,7 @@ xyz
     {
         "id": "substitute",
         "name": "Substitute  :s",
+        "category": "Visual & Cmds",
         "description": "Use :s to substitute text patterns.",
         "allowed_keys": [":", "s", "/", "g", "%", "j"],
         "check_mode": "content",
@@ -632,6 +752,7 @@ cat cat dog
     {
         "id": "yank-put",
         "name": "Yank & Put  yy / yw / p",
+        "category": "Visual & Cmds",
         "description": "Yank (copy) and put (paste) entire lines.",
         "allowed_keys": ["y", "y", "p", "j"],
         "check_mode": "content",
@@ -649,6 +770,7 @@ line three
     {
         "id": "registers",
         "name": "Named Registers  \"a y / \"a p",
+        "category": "Visual & Cmds",
         "description": "Yank to and paste from named registers.",
         "allowed_keys": ["\"", "a", "y", "p"],
         "check_mode": "content",
@@ -668,6 +790,7 @@ third
     {
         "id": "cgn-dot",
         "name": "cgn + Dot  cgn / .",
+        "category": "Advanced",
         "description": "Change all occurrences of a pattern using cgn and the dot repeat.",
         "allowed_keys": ["c", "g", "n", ".", "/"],
         "check_mode": "content",
@@ -684,6 +807,7 @@ foo bar foo
     {
         "id": "macros",
         "name": "Macros  q / @",
+        "category": "Advanced",
         "description": "Record and replay macros to automate repetitive edits.",
         "allowed_keys": ["q", "@", "a", "$", "j", "g"],
         "check_mode": "content",
@@ -702,6 +826,7 @@ foo bar foo
     {
         "id": "window-nav",
         "name": "Window Navigation  Ctrl-W",
+        "category": "Advanced",
         "description": "Navigate between windows using Ctrl-W h/j/k/l. Split windows with Ctrl-W v/s.",
         "allowed_keys": ["<C-w>", "h", "j", "k", "l", "v", "s", "c", "o"],
         "layout": "windows",

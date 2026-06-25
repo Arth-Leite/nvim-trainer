@@ -30,17 +30,16 @@ BG_GRAY   = "\033[48;5;240m"
 
 CLEAR = "\033[2J\033[H"
 
-# ── Exercise categories (start, end — end exclusive) ────────────────────────────
-CATEGORIES = [
-    ("Movement",          0,  6, BG_TEAL),
-    ("Find & Search",     6, 10, BG_PURPLE),
-    ("Delete & Change",  10, 14, BG_ORANGE),
-    ("Pairs & Jumps",    14, 18, BG_TEAL),
-    ("Text Objects",     18, 21, BG_PURPLE),
-    ("Visual & Cmds",    21, 26, BG_ORANGE),
-    ("Advanced",         26, 29, BG_GRAY),
-]
-
+# ── Exercise categories ────────────────────────────────────────────────────────
+CATEGORY_COLORS = {
+    "Movement":        BG_TEAL,
+    "Find & Search":   BG_PURPLE,
+    "Delete & Change": BG_ORANGE,
+    "Pairs & Jumps":   BG_TEAL,
+    "Text Objects":    BG_PURPLE,
+    "Visual & Cmds":   BG_ORANGE,
+    "Advanced":        BG_GRAY,
+}
 
 def clr():
     print(CLEAR, end="")
@@ -48,7 +47,7 @@ def clr():
 
 def header():
     print(f"  {BOLD}{BG_TEAL}{WHITE}  ╭──────────────────────────────╮  {RESET}")
-    print(f"  {BOLD}{BG_TEAL}{WHITE}  │     V I M   T R A I N E R     │  {RESET}")
+    print(f"  {BOLD}{BG_TEAL}{WHITE}  │     V I M   T R A I N E R    │  {RESET}")
     print(f"  {BOLD}{BG_TEAL}{WHITE}  ╰──────────────────────────────╯  {RESET}")
 
 
@@ -56,14 +55,30 @@ def _menu_prompt():
     print(f"  {BOLD}Pick a lesson{RESET}  {DIM}(number, or q to quit){RESET}: ", end="")
 
 
+def get_categorized_exercises(exercises):
+    grouped = {}
+    for ex in exercises:
+        cat = ex.get("category", "Other")
+        if cat not in grouped:
+            grouped[cat] = []
+        grouped[cat].append(ex)
+    return grouped
+
+
 def show_exercises_categorized(exercises):
-    for cat_name, start, end, bg in CATEGORIES:
+    grouped = get_categorized_exercises(exercises)
+    
+    # Track overall index for menu selection
+    current_idx = 0
+    
+    for cat_name, ex_list in grouped.items():
+        bg = CATEGORY_COLORS.get(cat_name, BG_DARK)
         print(f"\n  {BOLD}{bg}{WHITE}  {cat_name}{RESET}")
-        for i in range(start, end):
-            ex = exercises[i]
-            num = i + 1
+        for ex in ex_list:
+            num = current_idx + 1
             keys = "  ".join(ex.get("allowed_keys", [])[:5])
             print(f"    {GREEN}{num:>2}{RESET}  {ex['name']:<32}  {YELLOW}{keys}{RESET}")
+            current_idx += 1
 
 
 def show_stats(stats, exercise_name: str):

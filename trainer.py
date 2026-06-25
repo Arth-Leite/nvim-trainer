@@ -18,6 +18,7 @@ import pynvim
 # ── Highlight group names ──────────────────────────────────────────────────────
 HL_TARGET   = "VimTrainerTarget"    # where the user needs to go
 HL_DONE     = "VimTrainerDone"      # briefly shown on success
+HL_WALL     = "VimTrainerWall"      # wall collision flash
 HL_STATUS   = "VimTrainerStatus"    # status line colour
 
 POLL_INTERVAL = 0.05  # seconds between cursor checks
@@ -97,6 +98,8 @@ class VimTrainer:
             f"ctermbg=226 ctermfg=0",
             f"highlight {HL_DONE}   guibg=#00FF87 guifg=#000000 "
             f"ctermbg=48  ctermfg=0",
+            f"highlight {HL_WALL}   guibg=#FF0000 guifg=#FFFFFF "
+            f"ctermbg=196 ctermfg=15",
 
             # ── Instruction header ────────────────────────────────────
             "highlight TrainerHeader guibg=#2a2a3e guifg=#e0e0e0 "
@@ -194,7 +197,7 @@ class VimTrainer:
             f"  Exercise: {exercise['name']}",
             f"  {exercise['description']}",
             f"  Allowed keys: {keys}",
-            f"  Commands:  :Restart  :Quit",
+            "  Commands:  :Restart  :Quit",
             "",
         ]
         buf[:] = lines
@@ -280,6 +283,53 @@ class VimTrainer:
         safe = msg.replace("'", "\\'").replace('"', '\\"')
         self.nvim.command(f'echohl {hl} | echo "{safe}" | echohl None')
 
+    # ── Wall collision detection (per-move via CursorMoved) ───────────────────
+
+    def _setup_wall_detection(self, wall_chars: str):
+        """Install a CursorMoved autocommand that catches every single move.
+
+        When the cursor lands on a wall character it snaps back to the previous
+        valid position and briefly highlights the wall in red — all within the
+        Neovim event loop, so no amount of rapid typing can clip through.
+        """
+        safe_chars = wall_chars.replace("|", r"\|").replace("-", r"\-")
+        pc = "'\\%' . col('.') . 'c.'"  # Neovim column-pattern helper
+        self.nvim.command(rf"""
+            let g:trainer_prev_pos = [line('.'), col('.')]
+            let g:trainer_wall_id = -1
+            augroup TrainerWall
+                autocmd!
+                autocmd CursorMoved * call TrainerCheckWall()
+            augroup END
+            function! TrainerClearWall() abort
+                silent! call matchdelete(g:trainer_wall_id)
+                let g:trainer_wall_id = -1
+            endfunction
+            function! TrainerCheckWall() abort
+                let cur = [line('.'), col('.')]
+                let char = matchstr(getline('.'), {pc})
+                if char =~# '[{safe_chars}]'
+                    call cursor(g:trainer_prev_pos[0], g:trainer_prev_pos[1])
+                    silent! call matchdelete(g:trainer_wall_id)
+                    let g:trainer_wall_id = matchadd(
+                        \ '{HL_WALL}',
+                        \ '\%' . cur[0] . 'l\%' . cur[1] . 'c')
+                    call timer_start(200, 'TrainerClearWall')
+                else
+                    let g:trainer_prev_pos = cur
+                endif
+            endfunction
+        """)
+
+    def _teardown_wall_detection(self):
+        """Remove the wall-detection autocommand and any leftover match."""
+        self.nvim.command("""
+            silent! call matchdelete(g:trainer_wall_id)
+            augroup TrainerWall
+                autocmd!
+            augroup END
+        """)
+
     # ── Exercise runner ────────────────────────────────────────────────────────
 
     def run_exercise(self, exercise: dict, on_complete=None):
@@ -312,6 +362,10 @@ class VimTrainer:
             self._clear_highlights()
             self._highlight_target(targets[target_idx], HL_TARGET)
             self._update_status(exercise, stats, target_idx)
+
+            wall_chars = exercise.get("wall_chars", "")
+            if wall_chars:
+                self._setup_wall_detection(wall_chars)
 
             try:
                 while not self._stop_event.is_set():
@@ -448,6 +502,7 @@ class VimTrainer:
 
             return stats
         finally:
+            self._teardown_wall_detection()
             self._clear_highlights()
             if stats.targets_hit > 0:
                 time.sleep(1)
